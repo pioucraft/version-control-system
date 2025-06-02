@@ -2,6 +2,9 @@ package main
 
 import (
 	"strings"
+	"fmt"
+	"crypto/sha256"
+	"time"
 )
 
 type Change struct {
@@ -20,6 +23,33 @@ TO IMPLEMENT :
 
 
 func main() {
+	commitId, err := simpleCommit("cb0a8d8b-57f8-48af-b448-71df60c7a13b", "Hi", "Hello\nHi")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	fmt.Println("Commit ID:", commitId)
+}
+
+func simpleCommit(key string, oldContent string, newContent string) (string, error) {
+	diffs := diff(oldContent, newContent)
+	stringDiff := "" 
+	for _, change := range diffs {
+		switch change.Op {
+		case "equal":
+			stringDiff += fmt.Sprintf("=%d\n", change.Line)
+		case "insert":
+			stringDiff += fmt.Sprintf("+%s\n", change.Value)
+		case "delete":
+			stringDiff += fmt.Sprintf("-%d\n", change.Line)
+		}
+	}
+	hash := sha256.Sum256([]byte(newContent))
+	hashString := fmt.Sprintf("%x", hash)
+	timestamp := time.Now().Unix()
+	timestampString := fmt.Sprintf("%d", timestamp)
+	commitId := "d" + timestampString + "+" + hashString 
+	return commitId, nil
 }
 
 func diff(oldContent string, newContent string) []Change {
@@ -53,7 +83,7 @@ func diff(oldContent string, newContent string) []Change {
 			diffs = append(diffs, Change{Op: "delete", Value: oldLines[i-1], Line: i})
 			i--
 		} else {
-			diffs = append(diffs, Change{Op: "insert", Value: newLines[j-1], Line: j})
+			diffs = append(diffs, Change{Op: "insert", Value: newLines[j-1], Line: i})
 			j--
 		}
 	}
@@ -66,7 +96,7 @@ func diff(oldContent string, newContent string) []Change {
 
 	// Handle leftover lines in newLines (insertions)
 	for j > 0 {
-		diffs = append(diffs, Change{Op: "insert", Value: newLines[j-1], Line: j})
+		diffs = append(diffs, Change{Op: "insert", Value: newLines[j-1], Line: i})
 		j--
 	}
 
