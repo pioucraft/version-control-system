@@ -5,15 +5,20 @@ import (
 	"strings"
 )
 
-func main() {
-	diff("Hello\nWorld\nThis is a test.\nGoodbye", "Hello\nWorld\nThis is a different test.\nGoodbye")
-	diff("Line 1\nLine 2\nLine 3", "Line 1\nLine 2\nLine 4")
+type Change struct {
+	Op string
+	Value string
+	Line int
 }
-func diff(oldContent string, newContent string) {
-	type Change struct {
-		Op    string
-		Value string
-	}
+
+
+func main() {
+	fmt.Println(diff("Hello\nWorld\nThis is a test.\nGoodbye", "Hello\nWorld\nThis is a different test.\nGoodbye"))
+	fmt.Println(diff("Line 1\nLine 2\nLine 3", "Line 1\nLine 2\nLine 4"))
+	fmt.Println(diff("Line A\nLine B", "Line C\nLine D\nLine E"))
+}
+
+func diff(oldContent string, newContent string) []Change {
 	diffs := []Change{}
 
 	oldLines := strings.Split(oldContent, "\n")
@@ -37,27 +42,27 @@ func diff(oldContent string, newContent string) {
 	i, j := len(oldLines), len(newLines)
 	for i > 0 && j > 0 {
 		if oldLines[i-1] == newLines[j-1] {
-			diffs = append(diffs, Change{Op: "equal", Value: oldLines[i-1]})
+			diffs = append(diffs, Change{Op: "equal", Value: oldLines[i-1], Line: i})
 			i--
 			j--
-		} else if lcs[i-1][j] >= lcs[i][j-1] {
-			diffs = append(diffs, Change{Op: "delete", Value: oldLines[i-1]})
+		} else if lcs[i-1][j] > lcs[i][j-1] {
+			diffs = append(diffs, Change{Op: "delete", Value: oldLines[i-1], Line: i})
 			i--
 		} else {
-			diffs = append(diffs, Change{Op: "insert", Value: newLines[j-1]})
+			diffs = append(diffs, Change{Op: "insert", Value: newLines[j-1], Line: j})
 			j--
 		}
 	}
 
 	// Handle leftover lines in oldLines (deletions)
 	for i > 0 {
-		diffs = append(diffs, Change{Op: "delete", Value: oldLines[i-1]})
+		diffs = append(diffs, Change{Op: "delete", Value: oldLines[i-1], Line: i})
 		i--
 	}
 
 	// Handle leftover lines in newLines (insertions)
 	for j > 0 {
-		diffs = append(diffs, Change{Op: "insert", Value: newLines[j-1]})
+		diffs = append(diffs, Change{Op: "insert", Value: newLines[j-1], Line: j})
 		j--
 	}
 
@@ -66,10 +71,7 @@ func diff(oldContent string, newContent string) {
 		diffs[left], diffs[right] = diffs[right], diffs[left]
 	}
 
-	// Print diffs nicely
-	for _, d := range diffs {
-		fmt.Printf("%s: %s\n", d.Op, d.Value)
-	}
+	return diffs
 }
 
 func max(a, b int) int {
