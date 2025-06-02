@@ -24,12 +24,6 @@ TO IMPLEMENT :
 
 
 func main() {
-	commitId, err := simpleCommit("cb0a8d8b-57f8-48af-b448-71df60c7a13b", "Hi", "Hello\nHi")
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-	fmt.Println("Commit ID:", commitId)
 }
 
 func simpleCommit(key string, oldContent string, newContent string) (string, error) {
