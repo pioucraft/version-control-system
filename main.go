@@ -14,6 +14,12 @@ type Change struct {
 	Line int
 }
 
+type simpleCommitStruct struct {
+	Key string
+	OldContent string
+	NewContent string
+}
+
 /*
 
 TO IMPLEMENT :
@@ -24,6 +30,21 @@ TO IMPLEMENT :
 
 
 func main() {
+}
+
+func FullCommit(commits []simpleCommitStruct, message string) (string, error) {
+	commitIds := []string{}
+	for _, commit := range commits {
+		commitId, err := simpleCommit(commit.Key, commit.OldContent, commit.NewContent)
+		if err != nil {
+			return "", fmt.Errorf("failed to create commit for key %s: %w", commit.Key, err)
+		}
+		commitIds = append(commitIds, commitId)
+	}
+	if len(commitIds) == 0 {
+		return "", fmt.Errorf("no commits created, check if there are changes")
+	}
+	return "", nil
 }
 
 func simpleCommit(key string, oldContent string, newContent string) (string, error) {
