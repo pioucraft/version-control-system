@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"crypto/sha256"
 	"time"
+	"os"
 )
 
 type Change struct {
@@ -32,6 +33,9 @@ func main() {
 }
 
 func simpleCommit(key string, oldContent string, newContent string) (string, error) {
+	if oldContent == newContent {
+		return "", fmt.Errorf("no changes detected, commit not created")
+	}
 	diffs := diff(oldContent, newContent)
 	stringDiff := "" 
 	for _, change := range diffs {
@@ -44,11 +48,18 @@ func simpleCommit(key string, oldContent string, newContent string) (string, err
 			stringDiff += fmt.Sprintf("-%d\n", change.Line)
 		}
 	}
+
 	hash := sha256.Sum256([]byte(newContent))
 	hashString := fmt.Sprintf("%x", hash)
 	timestamp := time.Now().Unix()
 	timestampString := fmt.Sprintf("%d", timestamp)
 	commitId := "d" + timestampString + "+" + hashString 
+
+	commitFilePath := fmt.Sprintf(".vc/keys/%s/commits/%s", key, commitId)
+	err := os.WriteFile(commitFilePath, []byte(stringDiff), 0644)
+	if err != nil {
+		return "", fmt.Errorf("failed to write commit file: %w", err)
+	}
 	return commitId, nil
 }
 
