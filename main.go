@@ -11,6 +11,15 @@ type Change struct {
 	Line int
 }
 
+/*
+
+TO IMPLEMENT :
+- Add to commits history
+- Get diff between version of key in history and new version.
+- Get key content (at specific version or at latest version)
+- Get key history
+*/
+
 
 func main() {
 	fmt.Println(diff("Hello\nWorld\nThis is a test.\nGoodbye", "Hello\nWorld\nThis is a different test.\nGoodbye"))
