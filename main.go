@@ -17,7 +17,6 @@ TO IMPLEMENT :
 - Add to commits history
 - Get diff between version of key in history and new version.
 - Get key content (at specific version or at latest version)
-- Get key history
 */
 
 
