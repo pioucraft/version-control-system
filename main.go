@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -21,9 +20,6 @@ TO IMPLEMENT :
 
 
 func main() {
-	fmt.Println(diff("Hello\nWorld\nThis is a test.\nGoodbye", "Hello\nWorld\nThis is a different test.\nGoodbye"))
-	fmt.Println(diff("Line 1\nLine 2\nLine 3", "Line 1\nLine 2\nLine 4"))
-	fmt.Println(diff("Line A\nLine B", "Line C\nLine D\nLine E"))
 }
 
 func diff(oldContent string, newContent string) []Change {
