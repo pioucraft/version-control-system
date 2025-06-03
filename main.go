@@ -23,13 +23,6 @@ type simpleCommitStruct struct {
 	BinaryContent []byte // Optional, for binary commits
 }
 
-/*
-
-TO IMPLEMENT :
-- Get diff between last version of key and new version. (doesn't work for binary files)
-*/
-
-
 func main() {
 }
 
