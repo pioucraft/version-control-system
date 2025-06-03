@@ -30,21 +30,35 @@ TO IMPLEMENT :
 
 
 func main() {
+	FullCommit([]simpleCommitStruct{
+		{
+			Key: "cb0a8d8b-57f8-48af-b448-71df60c7a13b",
+			OldContent: "",
+			NewContent: "Hello, World!",
+		},
+	}, "Initial commit")
 }
 
-func FullCommit(commits []simpleCommitStruct, message string) (string, error) {
+func FullCommit(commits []simpleCommitStruct, message string) error {
 	commitIds := []string{}
 	for _, commit := range commits {
 		commitId, err := simpleCommit(commit.Key, commit.OldContent, commit.NewContent)
 		if err != nil {
-			return "", fmt.Errorf("failed to create commit for key %s: %w", commit.Key, err)
+			return fmt.Errorf("failed to create commit for key %s: %w", commit.Key, err)
 		}
 		commitIds = append(commitIds, commitId)
 	}
 	if len(commitIds) == 0 {
-		return "", fmt.Errorf("no commits created, check if there are changes")
+		return fmt.Errorf("no commits created, check if there are changes")
 	}
-	return "", nil
+	numberOfLines := len(strings.Split(message, "\n"))
+	commitContent := fmt.Sprintf("%d\n%s\n%s", numberOfLines, message, strings.Join(commitIds, "\n"))
+	path := fmt.Sprintf(".vc/history/%d", time.Now().Unix())
+	err := os.WriteFile(path, []byte(commitContent), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write commit history file: %w", err)
+	}
+	return nil
 }
 
 func simpleCommit(key string, oldContent string, newContent string) (string, error) {
