@@ -1,9 +1,3 @@
-/*
-	For CLI usage. I don't know why anyone would use this for CLI usage, but here it is. :
-	<program> commit --key/-k <key> --old-content/-o <oldContent> --new-content/-n <newContent>
-	<program> cat --key/-k <key> --commit-id/-c <optional: commitId>
-	<program> diff --old-content/-o <oldContent> --new-content/-n <newContent>
-*/
 package main
 
 import (
@@ -33,7 +27,7 @@ func main() {
 	
 }
 
-func Cat(key string, commitId string) (string, error) {
+func cat(key string, commitId string) (string, error) {
 	fileslistPath := fmt.Sprintf(".vc/keys/%s/commits", key)
 	fileslist, err := os.ReadDir(fileslistPath)
 	if err != nil {
@@ -86,7 +80,7 @@ func Cat(key string, commitId string) (string, error) {
 	return strings.Join(content, "\n"), nil
 }
 
-func LastCat(key string) (string, error) {
+func lastCat(key string) (string, error) {
 	filesList, err := os.ReadDir(fmt.Sprintf(".vc/keys/%s/commits", key))
 	if err != nil {
 		return "", fmt.Errorf("failed to read commits directory for key %s: %w", key, err)
@@ -100,11 +94,11 @@ func LastCat(key string) (string, error) {
 			latestCommit = file.Name()
 		}
 	}
-	cat, err := Cat(key, latestCommit)
+	cat, err := cat(key, latestCommit)
 	return cat, err
 }
 
-func FullCommit(commits []simpleCommitStruct, message string) error {
+func fullCommit(commits []simpleCommitStruct, message string) error {
 	commitIds := []string{}
 	for _, commit := range commits {
 		if commit.BinaryContent != nil {
@@ -153,7 +147,7 @@ func simpleCommit(key string, oldContent string, newContent string) (string, err
 	if oldContent == newContent {
 		return "", fmt.Errorf("no changes detected, commit not created")
 	}
-	diffs := Diff(oldContent, newContent)
+	diffs := diff(oldContent, newContent)
 	stringDiff := "" 
 	for _, change := range diffs {
 		switch change.Op {
@@ -180,7 +174,7 @@ func simpleCommit(key string, oldContent string, newContent string) (string, err
 	return commitId, nil
 }
 
-func Diff(oldContent string, newContent string) []Change {
+func diff(oldContent string, newContent string) []Change {
 	diffs := []Change{}
 
 	oldLines := strings.Split(oldContent, "\n")
