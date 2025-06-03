@@ -24,11 +24,15 @@ type simpleCommitStruct struct {
 }
 
 func main() {
-	
+	err := fullCommit("Initial commit")	
+	if err != nil {
+		fmt.Printf("Error during commit: %v\n", err)
+		return
+	}
 }
 
 func cat(key string, commitId string) (string, error) {
-	fileslistPath := fmt.Sprintf(".vc/keys/%s/commits", key)
+	fileslistPath := fmt.Sprintf(".vc/keys/%s/.commits", key)
 	fileslist, err := os.ReadDir(fileslistPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read commits directory for key %s: %w", key, err)
@@ -44,7 +48,7 @@ func cat(key string, commitId string) (string, error) {
 			return "", fmt.Errorf("binary commits are not supported for cat operation")
 		}
 		breakAfter := file == commitId
-		diffPath := fmt.Sprintf(".vc/keys/%s/commits/%s", key, file)
+		diffPath := fmt.Sprintf(".vc/keys/%s/.commits/%s", key, file)
 		diff, err := os.ReadFile(diffPath)
 		if err != nil {
 			return "", fmt.Errorf("failed to read commit file %s for key %s: %w", file, key, err)
@@ -81,7 +85,7 @@ func cat(key string, commitId string) (string, error) {
 }
 
 func lastCat(key string) (string, error) {
-	filesList, err := os.ReadDir(fmt.Sprintf(".vc/keys/%s/commits", key))
+	filesList, err := os.ReadDir(fmt.Sprintf(".vc/keys/%s/.commits", key))
 	if err != nil {
 		return "", fmt.Errorf("failed to read commits directory for key %s: %w", key, err)
 	}
@@ -98,7 +102,69 @@ func lastCat(key string) (string, error) {
 	return cat, err
 }
 
-func fullCommit(commits []simpleCommitStruct, message string) error {
+func fullCommit(message string) error {
+	// check for diffs
+	commits := []simpleCommitStruct{}
+	foldersToNavigate := []string{"./"}
+	for _, folder := range foldersToNavigate {
+		filesAndFolders, err := os.ReadDir(folder)
+		if err != nil {
+			return fmt.Errorf("failed to read directory %s: %w", folder, err)
+		}
+		for _, fileOrFolder := range filesAndFolders {
+			if fileOrFolder.IsDir() {
+				if fileOrFolder.Name() == ".vc" || fileOrFolder.Name() == ".git" || fileOrFolder.Name() == ".commits" {
+					continue
+				}
+				foldersToNavigate = append(foldersToNavigate, folder+fileOrFolder.Name()+"/")
+				continue		
+			}
+			oldContent := ""
+			key := folder + fileOrFolder.Name()
+			content, err := os.ReadFile(key)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", key, err)
+			}
+			contentHash := sha256.Sum256(content)
+			// get key last commit
+			commitPath := fmt.Sprintf(".vc/keys/%s/.commits", key)
+			commitFiles, err := os.ReadDir(commitPath)
+			if err != nil {
+				if err != os.ErrNotExist {
+					oldContent = ""
+					// create the directory
+					err = os.MkdirAll(commitPath, 0755)
+				} else {
+					return fmt.Errorf("failed to read commits directory for key %s: %w", key, err)
+				}
+			}
+			var latestCommit string
+			for _, commitFile := range commitFiles {
+				if commitFile.Name() > latestCommit {
+					latestCommit = commitFile.Name()
+				}
+			}
+			if latestCommit != "" {
+				latestCommitHash := latestCommit[1:]
+				latestCommitHash = strings.Split(latestCommitHash, "+")[1]
+				if latestCommitHash == fmt.Sprintf("%x", contentHash) {
+					continue // no changes detected
+				}
+			} else {
+				oldContent = "" // no previous commit found
+			}
+			commits = append(commits, simpleCommitStruct{	
+				Key: key,
+				OldContent: oldContent,
+				NewContent: string(content),
+				BinaryContent: nil, // will be set if the file is binary
+			})
+		}
+	}
+	fmt.Println("Found commits to process:")
+	fmt.Println(commits)
+
+
 	commitIds := []string{}
 	for _, commit := range commits {
 		if commit.BinaryContent != nil {
@@ -135,7 +201,7 @@ func binarySimpleCommit(key string, content []byte) (string, error) {
 	timestamp := time.Now().Unix()
 	timestampString := fmt.Sprintf("%d", timestamp)
 	commitId := "b" + timestampString + "+" + hashString 
-	commitFilePath := fmt.Sprintf(".vc/keys/%s/commits/%s", key, commitId)
+	commitFilePath := fmt.Sprintf(".vc/keys/%s/.commits/%s", key, commitId)
 	err := os.WriteFile(commitFilePath, content, 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to write binary commit file: %w", err)
@@ -166,7 +232,7 @@ func simpleCommit(key string, oldContent string, newContent string) (string, err
 	timestampString := fmt.Sprintf("%d", timestamp)
 	commitId := "d" + timestampString + "+" + hashString 
 
-	commitFilePath := fmt.Sprintf(".vc/keys/%s/commits/%s", key, commitId)
+	commitFilePath := fmt.Sprintf(".vc/keys/%s/.commits/%s", key, commitId)
 	err := os.WriteFile(commitFilePath, []byte(stringDiff), 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to write commit file: %w", err)
