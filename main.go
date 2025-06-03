@@ -24,8 +24,8 @@ type simpleCommitStruct struct {
 /*
 
 TO IMPLEMENT :
-- Get diff between version of key in history and new version.
-- Get key content (at specific version or at latest version)
+- Get diff between version of key in history and new version. (doesn't work for binary files)
+- Get key content (at specific version or at latest version) (doesn't work for binary files)
 */
 
 
