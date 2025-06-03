@@ -1,3 +1,9 @@
+/*
+	Important to do:
+	- Add support for deletions
+	- Weird bug with new lines at the end of files being created
+
+*/
 package main
 
 import (
@@ -24,11 +30,7 @@ type simpleCommitStruct struct {
 }
 
 func main() {
-	err := fullCommit("Initial commit")	
-	if err != nil {
-		fmt.Printf("Error during commit: %v\n", err)
-		return
-	}
+	fmt.Println(lastCat("hello.txt"))
 }
 
 func cat(key string, commitId string) (string, error) {
@@ -122,16 +124,49 @@ func fullCommit(message string) error {
 			oldContent := ""
 			key := folder + fileOrFolder.Name()
 			content, err := os.ReadFile(key)
+			
 			if err != nil {
 				return fmt.Errorf("failed to read file %s: %w", key, err)
 			}
 			contentHash := sha256.Sum256(content)
+			if isBinary(content){ 
+				// check the hashes
+				commitsDir, err := os.ReadDir(fmt.Sprintf(".vc/keys/%s/.commits", key))
+				if err != nil && !os.IsNotExist(err) {
+					return fmt.Errorf("failed to read commits directory for key %s: %w", key, err)
+				}
+				hasChanges := true
+				for _, commit := range commitsDir {
+					if strings.HasPrefix(commit.Name(), "b") {
+						commitHash := commit.Name()[1:] // remove the 'b' prefix
+						commitHash = strings.Split(commitHash, "+")[1] // split by '+' and take the hash part
+						if commitHash == fmt.Sprintf("%x", contentHash) {
+							hasChanges = false
+							break
+						}
+					}
+				}
+				if !hasChanges {
+					continue // no changes detected
+				}
+				commitPath := fmt.Sprintf(".vc/keys/%s/.commits", key)
+				err = os.MkdirAll(commitPath, 0755)
+				if err != nil && !os.IsExist(err) {
+					return fmt.Errorf("failed to create commits directory for key %s: %w", key, err)
+				}
+				commits = append(commits, simpleCommitStruct{
+					Key: key,
+					OldContent: "",
+					NewContent: "",
+					BinaryContent: content, // store binary content directly
+				})
+				continue
+			}
 			// get key last commit
 			commitPath := fmt.Sprintf(".vc/keys/%s/.commits", key)
 			commitFiles, err := os.ReadDir(commitPath)
 			if err != nil {
 				if err != os.ErrNotExist {
-					oldContent = ""
 					// create the directory
 					err = os.MkdirAll(commitPath, 0755)
 				} else {
@@ -151,12 +186,7 @@ func fullCommit(message string) error {
 					continue // no changes detected
 				}
 				// read the last commit content
-				if strings.HasPrefix(latestCommit, "b") {
-					oldContent, err = lastCat(key)
-
-				} else {
-					oldContent, err = cat(key, latestCommit)
-				}
+				oldContent, err = cat(key, latestCommit)
 				if err != nil {
 					return fmt.Errorf("failed to read last commit for key %s: %w", key, err)
 				}
@@ -180,6 +210,7 @@ func fullCommit(message string) error {
 			if err != nil {
 				return fmt.Errorf("failed to create binary commit for key %s: %w", commit.Key, err)
 			}
+			commitId = commit.Key + "/.commits/" + commitId
 			commitIds = append(commitIds, commitId)
 			continue
 		}
@@ -187,7 +218,7 @@ func fullCommit(message string) error {
 		if err != nil {
 			return fmt.Errorf("failed to create commit for key %s: %w", commit.Key, err)
 		}
-		commitId = commit.Key + "/.commits" + commitId
+		commitId = commit.Key + "/.commits/" + commitId
 		commitIds = append(commitIds, commitId)
 	}
 	if len(commitIds) == 0 {
@@ -309,5 +340,18 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func isBinary(data []byte) bool {
+	maxCheck := 8000
+	if len(data) < maxCheck {
+		maxCheck = len(data)
+	}
+	for i := 0; i < maxCheck; i++ {
+		if data[i] == 0 {
+			return true
+		}
+	}
+	return false
 }
 
