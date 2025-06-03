@@ -18,12 +18,12 @@ type simpleCommitStruct struct {
 	Key string
 	OldContent string
 	NewContent string
+	BinaryContent []byte // Optional, for binary commits
 }
 
 /*
 
 TO IMPLEMENT :
-- Add to commits history
 - Get diff between version of key in history and new version.
 - Get key content (at specific version or at latest version)
 */
@@ -42,6 +42,14 @@ func main() {
 func FullCommit(commits []simpleCommitStruct, message string) error {
 	commitIds := []string{}
 	for _, commit := range commits {
+		if commit.BinaryContent != nil {
+			commitId, err := binarySimpleCommit(commit.Key, commit.BinaryContent)
+			if err != nil {
+				return fmt.Errorf("failed to create binary commit for key %s: %w", commit.Key, err)
+			}
+			commitIds = append(commitIds, commitId)
+			continue
+		}
 		commitId, err := simpleCommit(commit.Key, commit.OldContent, commit.NewContent)
 		if err != nil {
 			return fmt.Errorf("failed to create commit for key %s: %w", commit.Key, err)
@@ -59,6 +67,20 @@ func FullCommit(commits []simpleCommitStruct, message string) error {
 		return fmt.Errorf("failed to write commit history file: %w", err)
 	}
 	return nil
+}
+
+func binarySimpleCommit(key string, content []byte) (string, error) {
+	hash := sha256.Sum256(content)
+	hashString := fmt.Sprintf("%x", hash)
+	timestamp := time.Now().Unix()
+	timestampString := fmt.Sprintf("%d", timestamp)
+	commitId := "b" + timestampString + "+" + hashString 
+	commitFilePath := fmt.Sprintf(".vc/keys/%s/commits/%s", key, commitId)
+	err := os.WriteFile(commitFilePath, content, 0644)
+	if err != nil {
+		return "", fmt.Errorf("failed to write binary commit file: %w", err)
+	}
+	return commitId, nil
 }
 
 func simpleCommit(key string, oldContent string, newContent string) (string, error) {
