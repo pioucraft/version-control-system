@@ -1,8 +1,8 @@
 /*
 	For CLI usage. I don't know why anyone would use this for CLI usage, but here it is. :
-	<program> commit <key> <oldContent> <newContent>
-	<program> cat <key> <optional: commitId>
-	<program> diff <oldContent> <newContent>
+	<program> commit --key/-k <key> --old-content/-o <oldContent> --new-content/-n <newContent>
+	<program> cat --key/-k <key> --commit-id/-c <optional: commitId>
+	<program> diff --old-content/-o <oldContent> --new-content/-n <newContent>
 */
 package main
 
@@ -30,6 +30,7 @@ type simpleCommitStruct struct {
 }
 
 func main() {
+	
 }
 
 func Cat(key string, commitId string) (string, error) {
