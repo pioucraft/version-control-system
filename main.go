@@ -1,8 +1,7 @@
 /*
 	Important to do:
 	- Add support for deletions
-	- Weird bug with new lines at the end of files being created
-
+	- STILL EMPTY LINE ISSUE
 */
 package main
 
@@ -30,7 +29,11 @@ type simpleCommitStruct struct {
 }
 
 func main() {
-	fmt.Println(lastCat("hello.txt"))
+	err := fullCommit("Initial commit")
+	if err != nil {
+		fmt.Printf("Error during commit: %v\n", err)
+		return
+	}
 }
 
 func cat(key string, commitId string) (string, error) {
@@ -256,12 +259,10 @@ func simpleCommit(key string, oldContent string, newContent string) (string, err
 	stringDiff := "" 
 	for _, change := range diffs {
 		switch change.Op {
-		case "equal":
+		case "=":
 			stringDiff += fmt.Sprintf("=%d\n", change.Line)
-		case "insert":
+		case "+":
 			stringDiff += fmt.Sprintf("+%s\n", change.Value)
-		case "delete":
-			stringDiff += fmt.Sprintf("-%d\n", change.Line)
 		}
 	}
 
@@ -285,51 +286,18 @@ func diff(oldContent string, newContent string) []Change {
 	oldLines := strings.Split(oldContent, "\n")
 	newLines := strings.Split(newContent, "\n")
 
-	lcs := make([][]int, len(oldLines)+1)
-	for i := range lcs {
-		lcs[i] = make([]int, len(newLines)+1)
-	}
-
-	for i := 1; i <= len(oldLines); i++ {
-		for j := 1; j <= len(newLines); j++ {
-			if oldLines[i-1] == newLines[j-1] {
-				lcs[i][j] = lcs[i-1][j-1] + 1
-			} else {
-				lcs[i][j] = max(lcs[i-1][j], lcs[i][j-1])
+	for i, newLine := range newLines {
+		found := false
+		for j, oldLine := range oldLines {
+			if newLine == oldLine {
+				diffs = append(diffs, Change{Op: "=", Value: "", Line: j + 1})
+				found = true
+				break
 			}
 		}
-	}
-
-	i, j := len(oldLines), len(newLines)
-	for i > 0 && j > 0 {
-		if oldLines[i-1] == newLines[j-1] {
-			diffs = append(diffs, Change{Op: "equal", Value: oldLines[i-1], Line: i})
-			i--
-			j--
-		} else if lcs[i-1][j] > lcs[i][j-1] {
-			diffs = append(diffs, Change{Op: "delete", Value: oldLines[i-1], Line: i})
-			i--
-		} else {
-			diffs = append(diffs, Change{Op: "insert", Value: newLines[j-1], Line: i})
-			j--
+		if !found {
+			diffs = append(diffs, Change{Op: "+", Value: newLine, Line: i + 1})
 		}
-	}
-
-	// Handle leftover lines in oldLines (deletions)
-	for i > 0 {
-		diffs = append(diffs, Change{Op: "delete", Value: oldLines[i-1], Line: i})
-		i--
-	}
-
-	// Handle leftover lines in newLines (insertions)
-	for j > 0 {
-		diffs = append(diffs, Change{Op: "insert", Value: newLines[j-1], Line: i})
-		j--
-	}
-
-	// Reverse the diffs slice since we built it backwards
-	for left, right := 0, len(diffs)-1; left < right; left, right = left+1, right-1 {
-		diffs[left], diffs[right] = diffs[right], diffs[left]
 	}
 
 	return diffs
