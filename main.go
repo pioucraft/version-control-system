@@ -45,7 +45,7 @@ func cat(key string, commitId string) (string, error) {
 	content := []string{""}
 	for _, file := range sortedFiles {
 		if strings.HasPrefix(file, "b") {
-			return "", fmt.Errorf("binary commits are not supported for cat operation")
+			continue
 		}
 		breakAfter := file == commitId
 		diffPath := fmt.Sprintf(".vc/keys/%s/.commits/%s", key, file)
@@ -150,6 +150,16 @@ func fullCommit(message string) error {
 				if latestCommitHash == fmt.Sprintf("%x", contentHash) {
 					continue // no changes detected
 				}
+				// read the last commit content
+				if strings.HasPrefix(latestCommit, "b") {
+					oldContent, err = lastCat(key)
+
+				} else {
+					oldContent, err = cat(key, latestCommit)
+				}
+				if err != nil {
+					return fmt.Errorf("failed to read last commit for key %s: %w", key, err)
+				}
 			} else {
 				oldContent = "" // no previous commit found
 			}
@@ -161,8 +171,6 @@ func fullCommit(message string) error {
 			})
 		}
 	}
-	fmt.Println("Found commits to process:")
-	fmt.Println(commits)
 
 
 	commitIds := []string{}
@@ -179,7 +187,7 @@ func fullCommit(message string) error {
 		if err != nil {
 			return fmt.Errorf("failed to create commit for key %s: %w", commit.Key, err)
 		}
-		commitId = commit.Key + "/" + commitId
+		commitId = commit.Key + "/.commits" + commitId
 		commitIds = append(commitIds, commitId)
 	}
 	if len(commitIds) == 0 {
