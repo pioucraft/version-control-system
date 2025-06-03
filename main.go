@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"time"
 	"os"
+	"sort"
+	"strconv"
 )
 
 type Change struct {
@@ -30,13 +32,84 @@ TO IMPLEMENT :
 
 
 func main() {
-	FullCommit([]simpleCommitStruct{
-		{
-			Key: "cb0a8d8b-57f8-48af-b448-71df60c7a13b",
-			OldContent: "",
-			NewContent: "Hello, World!",
-		},
-	}, "Initial commit")
+	lastcat, err := LastCat("cb0a8d8b-57f8-48af-b448-71df60c7a13b")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	fmt.Println("Last Cat Content:", lastcat)
+}
+
+func Cat(key string, commitId string) (string, error) {
+	fileslistPath := fmt.Sprintf(".vc/keys/%s/commits", key)
+	fileslist, err := os.ReadDir(fileslistPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read commits directory for key %s: %w", key, err)
+	}
+	var sortedFiles []string
+	for _, file := range fileslist {
+		sortedFiles = append(sortedFiles, file.Name())
+	}
+	sortedFiles = sort.StringSlice(sortedFiles) 
+	content := []string{""}
+	for _, file := range sortedFiles {
+		if strings.HasPrefix(file, "b") {
+			return "", fmt.Errorf("binary commits are not supported for Cat operation")
+		}
+		breakAfter := file == commitId
+		diffPath := fmt.Sprintf(".vc/keys/%s/commits/%s", key, file)
+		diff, err := os.ReadFile(diffPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read commit file %s for key %s: %w", file, key, err)
+		}
+		lines := strings.Split(string(diff), "\n")
+		newContent := []string{}
+		for _, line := range lines {
+			if line == "" {
+				continue
+			}
+			op := line[:1]
+			if op == "=" {
+				lineToAdd := line[1:]
+				if lineToAdd != "" {
+					lineToAddInt, err := strconv.Atoi(lineToAdd)
+					if err != nil {
+						return "", fmt.Errorf("invalid line number in commit diff: %s", lineToAdd)
+					}
+					newContent = append(newContent, content[lineToAddInt-1])	
+				}
+			} else if op == "+" {
+				lineToAdd := line[1:]
+				if lineToAdd != "" {
+					newContent = append(newContent, lineToAdd)
+				}
+			}
+		}
+		content = newContent
+		if breakAfter {
+			break
+		}
+	}
+	fmt.Println("Content after applying commit:", content)
+	return strings.Join(content, "\n"), nil
+}
+
+func LastCat(key string) (string, error) {
+	filesList, err := os.ReadDir(fmt.Sprintf(".vc/keys/%s/commits", key))
+	if err != nil {
+		return "", fmt.Errorf("failed to read commits directory for key %s: %w", key, err)
+	}
+	if len(filesList) == 0 {
+		return "", fmt.Errorf("no commits found for key %s", key)
+	}
+	var latestCommit string
+	for _, file := range filesList {
+		if latestCommit == "" || file.Name() > latestCommit {
+			latestCommit = file.Name()
+		}
+	}
+	cat, err := Cat(key, latestCommit)
+	return cat, err
 }
 
 func FullCommit(commits []simpleCommitStruct, message string) error {
@@ -54,6 +127,7 @@ func FullCommit(commits []simpleCommitStruct, message string) error {
 		if err != nil {
 			return fmt.Errorf("failed to create commit for key %s: %w", commit.Key, err)
 		}
+		commitId = commit.Key + "/" + commitId
 		commitIds = append(commitIds, commitId)
 	}
 	if len(commitIds) == 0 {
