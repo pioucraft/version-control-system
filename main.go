@@ -31,12 +31,6 @@ TO IMPLEMENT :
 
 
 func main() {
-	lastcat, err := LastCat("cb0a8d8b-57f8-48af-b448-71df60c7a13b")
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-	fmt.Println("Last Cat Content:", lastcat)
 }
 
 func Cat(key string, commitId string) (string, error) {
@@ -53,7 +47,7 @@ func Cat(key string, commitId string) (string, error) {
 	content := []string{""}
 	for _, file := range sortedFiles {
 		if strings.HasPrefix(file, "b") {
-			return "", fmt.Errorf("binary commits are not supported for Cat operation")
+			return "", fmt.Errorf("binary commits are not supported for cat operation")
 		}
 		breakAfter := file == commitId
 		diffPath := fmt.Sprintf(".vc/keys/%s/commits/%s", key, file)
@@ -89,7 +83,6 @@ func Cat(key string, commitId string) (string, error) {
 			break
 		}
 	}
-	fmt.Println("Content after applying commit:", content)
 	return strings.Join(content, "\n"), nil
 }
 
@@ -160,7 +153,7 @@ func simpleCommit(key string, oldContent string, newContent string) (string, err
 	if oldContent == newContent {
 		return "", fmt.Errorf("no changes detected, commit not created")
 	}
-	diffs := diff(oldContent, newContent)
+	diffs := Diff(oldContent, newContent)
 	stringDiff := "" 
 	for _, change := range diffs {
 		switch change.Op {
@@ -187,7 +180,7 @@ func simpleCommit(key string, oldContent string, newContent string) (string, err
 	return commitId, nil
 }
 
-func diff(oldContent string, newContent string) []Change {
+func Diff(oldContent string, newContent string) []Change {
 	diffs := []Change{}
 
 	oldLines := strings.Split(oldContent, "\n")
