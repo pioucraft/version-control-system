@@ -1,7 +1,3 @@
-/*
-	Important to do:
-	- Add support for deletions
-*/
 package main
 
 import (
@@ -13,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"slices"
+	"flag"
 )
 
 type Change struct {
@@ -29,9 +26,30 @@ type simpleCommitStruct struct {
 }
 
 func main() {
-	err := fullCommit("Initial commit")
-	if err != nil {
-		fmt.Printf("Error during commit: %v\n", err)
+	// if the first argument is commmit, then call the commit function with the flag -m/--message for commit message
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: vc commit -m <message>")
+		return
+	}
+	if os.Args[1] == "commit" {
+		var message string
+		flagSet := flag.NewFlagSet("commit", flag.ExitOnError)
+		flagSet.StringVar(&message, "m", "", "commit message")
+		flagSet.StringVar(&message, "message", "", "commit message")
+		if err := flagSet.Parse(os.Args[2:]); err != nil {
+			fmt.Println("Error parsing flags:", err)
+			return
+		}
+		if message == "" {
+			fmt.Println("Commit message is required")
+			return
+		}
+		err := fullCommit(message)
+		if err != nil {
+			fmt.Println("Error committing:", err)
+			return
+		}
+		fmt.Println("Commit successful")
 		return
 	}
 }
@@ -119,10 +137,13 @@ func fullCommit(message string) error {
 		knownKeys = append(knownKeys, "./"+key.Name())
 	}
 
+	keysWithCommits := []string{}
+
 	for ki := 0; ki < len(knownKeys); ki++ {
 		key := knownKeys[ki]
 		// if the folder has a .commit folder, skip it
 		if _, err := os.Stat(fmt.Sprintf(".vc/keys/%s/.commits", key)); err == nil {
+			keysWithCommits = append(keysWithCommits, key)
 			continue // skip this key, it has a .commits folder
 		}
 		// then add every children of the key folder to the keys to itterate over
@@ -134,24 +155,8 @@ func fullCommit(message string) error {
 			knownKeys = append(knownKeys, key + "/" + fileOrFolder.Name())
 		}
 	}
-	// for every key, check if there's another key that starts with the name of the key. If so, remove the key from the list
-	sort.Strings(knownKeys) // sort the keys to ensure consistent order
-	for i := 0; i < len(knownKeys); i++ {
-		key := knownKeys[i]
-		for j := 0; j < len(knownKeys); j++ {
-			if i == j {
-				continue // skip self-comparison
-			}
-			otherKey := knownKeys[j]
-			if strings.HasPrefix(otherKey, key+"/") {
-				// otherKey starts with key, so remove key from the list
-				knownKeys = slices.Delete(knownKeys, i, i+1)
-				i-- // adjust index after removal
-				break // no need to check other keys
-			}
-		}
-	}
 
+	knownKeys = keysWithCommits 
 
 	foundKeys := []string{}
 
@@ -257,18 +262,18 @@ func fullCommit(message string) error {
 	commitIds := []string{}
 
 	// check for keys that were not found
-	fmt.Println("Found keys:", foundKeys)
-	fmt.Println("Known keys:", knownKeys)
 	for _, key := range knownKeys {
 		if !slices.Contains(foundKeys, key) {
-			// this key was not found, so it was deleted
-			commitPath := fmt.Sprintf(".vc/keys/%s/.commits", key)
-			commitId := fmt.Sprintf("d%d+%s", time.Now().Unix(), "deleted")
-			err := os.WriteFile(fmt.Sprintf("%s/%s", commitPath, commitId), []byte(""), 0644)
+			os.MkdirAll(fmt.Sprintf(".vc/deleted/%d", time.Now().Unix()), 0755)
+			keyParentFolder := strings.TrimSuffix(key, "/"+strings.Split(key, "/")[len(strings.Split(key, "/"))-1])
+			err = os.MkdirAll(fmt.Sprintf(".vc/deleted/%d/%s", time.Now().Unix(), keyParentFolder), 0755)
+			err := os.Rename(fmt.Sprintf(".vc/keys/%s", key), fmt.Sprintf(".vc/deleted/%d/%s", time.Now().Unix(), key))
 			if err != nil {
-				return fmt.Errorf("failed to write commit for deleted key %s: %w", key, err)
+				return fmt.Errorf("failed to move deleted key %s: %w", key, err)
 			}
-			commitId = key + "/.commits/" + commitId
+
+			commitId := fmt.Sprintf("d%d+%s", time.Now().Unix(), "deleted")
+			commitId = key + "/.commits/" + commitId 
 			commitIds = append(commitIds, commitId)
 		}
 	}
