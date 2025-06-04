@@ -1,7 +1,6 @@
 /*
 	Important to do:
 	- Add support for deletions
-	- STILL EMPTY LINE ISSUE
 */
 package main
 
