@@ -12,6 +12,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"slices"
 )
 
 type Change struct {
@@ -107,10 +108,58 @@ func lastCat(key string) (string, error) {
 }
 
 func fullCommit(message string) error {
+	// check for all currently known keys
+	keys, err := os.ReadDir(".vc/keys")
+	if err != nil {
+		return fmt.Errorf("failed to read .vc/keys directory: %w", err)
+	}
+
+	knownKeys := []string{}
+	for _, key := range keys {
+		knownKeys = append(knownKeys, "./"+key.Name())
+	}
+
+	for ki := 0; ki < len(knownKeys); ki++ {
+		key := knownKeys[ki]
+		// if the folder has a .commit folder, skip it
+		if _, err := os.Stat(fmt.Sprintf(".vc/keys/%s/.commits", key)); err == nil {
+			continue // skip this key, it has a .commits folder
+		}
+		// then add every children of the key folder to the keys to itterate over
+		filesAndFolders, err := os.ReadDir(fmt.Sprintf(".vc/keys/%s", key))
+		if err != nil {
+			return fmt.Errorf("failed to read directory .vc/keys/%s: %w", key, err)
+		}
+		for _, fileOrFolder := range filesAndFolders {
+			knownKeys = append(knownKeys, key + "/" + fileOrFolder.Name())
+		}
+	}
+	// for every key, check if there's another key that starts with the name of the key. If so, remove the key from the list
+	sort.Strings(knownKeys) // sort the keys to ensure consistent order
+	for i := 0; i < len(knownKeys); i++ {
+		key := knownKeys[i]
+		for j := 0; j < len(knownKeys); j++ {
+			if i == j {
+				continue // skip self-comparison
+			}
+			otherKey := knownKeys[j]
+			if strings.HasPrefix(otherKey, key+"/") {
+				// otherKey starts with key, so remove key from the list
+				knownKeys = slices.Delete(knownKeys, i, i+1)
+				i-- // adjust index after removal
+				break // no need to check other keys
+			}
+		}
+	}
+
+
+	foundKeys := []string{}
+
 	// check for diffs
 	commits := []simpleCommitStruct{}
 	foldersToNavigate := []string{"./"}
-	for _, folder := range foldersToNavigate {
+	for folderi := 0; folderi < len(foldersToNavigate); folderi++ { 
+		folder := foldersToNavigate[folderi]
 		filesAndFolders, err := os.ReadDir(folder)
 		if err != nil {
 			return fmt.Errorf("failed to read directory %s: %w", folder, err)
@@ -126,6 +175,7 @@ func fullCommit(message string) error {
 			oldContent := ""
 			key := folder + fileOrFolder.Name()
 			content, err := os.ReadFile(key)
+			foundKeys = append(foundKeys, key)
 			
 			if err != nil {
 				return fmt.Errorf("failed to read file %s: %w", key, err)
@@ -204,8 +254,25 @@ func fullCommit(message string) error {
 		}
 	}
 
-
 	commitIds := []string{}
+
+	// check for keys that were not found
+	fmt.Println("Found keys:", foundKeys)
+	fmt.Println("Known keys:", knownKeys)
+	for _, key := range knownKeys {
+		if !slices.Contains(foundKeys, key) {
+			// this key was not found, so it was deleted
+			commitPath := fmt.Sprintf(".vc/keys/%s/.commits", key)
+			commitId := fmt.Sprintf("d%d+%s", time.Now().Unix(), "deleted")
+			err := os.WriteFile(fmt.Sprintf("%s/%s", commitPath, commitId), []byte(""), 0644)
+			if err != nil {
+				return fmt.Errorf("failed to write commit for deleted key %s: %w", key, err)
+			}
+			commitId = key + "/.commits/" + commitId
+			commitIds = append(commitIds, commitId)
+		}
+	}
+
 	for _, commit := range commits {
 		if commit.BinaryContent != nil {
 			commitId, err := binarySimpleCommit(commit.Key, commit.BinaryContent)
@@ -229,7 +296,7 @@ func fullCommit(message string) error {
 	numberOfLines := len(strings.Split(message, "\n"))
 	commitContent := fmt.Sprintf("%d\n%s\n%s", numberOfLines, message, strings.Join(commitIds, "\n"))
 	path := fmt.Sprintf(".vc/history/%d", time.Now().Unix())
-	err := os.WriteFile(path, []byte(commitContent), 0644)
+	err = os.WriteFile(path, []byte(commitContent), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write commit history file: %w", err)
 	}
