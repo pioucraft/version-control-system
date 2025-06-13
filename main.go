@@ -8,7 +8,7 @@ import (
 
 func main() {
 	// if the first argument is commmit, then call the commit function with the flag -m/--message for commit message
-	if len(os.Args) < 2 {
+	if len(os.Args) < 2 || (os.Args[1] == "help") {
 		fmt.Println("Usage: vc commit -m <message>")
 		return
 	}
