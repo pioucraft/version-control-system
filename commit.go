@@ -155,15 +155,15 @@ func FullCommit(message string) error {
 	// STEP 3. Now, it will check if there are any keys that have been deleted.
 	for _, key := range knownKeys {
 		if !slices.Contains(foundKeys, key) {
-			os.MkdirAll(fmt.Sprintf(".vc/deleted/%d", time.Now().Unix()), 0755)
+			os.MkdirAll(fmt.Sprintf(".vc/deleted/%d", timeNow.Unix()), 0755)
 			keyParentFolder := strings.TrimSuffix(key, "/"+strings.Split(key, "/")[len(strings.Split(key, "/"))-1])
-			err = os.MkdirAll(fmt.Sprintf(".vc/deleted/%d/%s", time.Now().Unix(), keyParentFolder), 0755)
-			err := os.Rename(fmt.Sprintf(".vc/keys/%s", key), fmt.Sprintf(".vc/deleted/%d/%s", time.Now().Unix(), key))
+			err = os.MkdirAll(fmt.Sprintf(".vc/deleted/%d/%s", timeNow.Unix(), keyParentFolder), 0755)
+			err := os.Rename(fmt.Sprintf(".vc/keys/%s", key), fmt.Sprintf(".vc/deleted/%d/%s", timeNow.Unix(), key))
 			if err != nil {
 				return fmt.Errorf("failed to move deleted key %s: %w", key, err)
 			}
 
-			commitId := fmt.Sprintf("d%d+%s", time.Now().Unix(), "deleted")
+			commitId := fmt.Sprintf("d%d+%s", timeNow.Unix(), "deleted")
 			commitId = key + "/.commits/" + commitId 
 			commitIds = append(commitIds, commitId)
 		}
@@ -192,7 +192,7 @@ func FullCommit(message string) error {
 	}
 	numberOfLines := len(strings.Split(message, "\n"))
 	commitContent := fmt.Sprintf("%d\n%s\n%s", numberOfLines, message, strings.Join(commitIds, "\n"))
-	path := fmt.Sprintf(".vc/history/%d", time.Now().Unix())
+	path := fmt.Sprintf(".vc/history/%d", timeNow.Unix())
 	err = os.WriteFile(path, []byte(commitContent), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write commit history file: %w", err)
@@ -205,7 +205,7 @@ func FullCommit(message string) error {
 func BinarySimpleCommit(key string, content []byte) (string, error) {
 	hash := sha256.Sum256(content)
 	hashString := fmt.Sprintf("%x", hash)
-	timestamp := time.Now().Unix()
+	timestamp := timeNow.Unix()
 	timestampString := fmt.Sprintf("%d", timestamp)
 	commitId := "b" + timestampString + "+" + hashString 
 	commitFilePath := fmt.Sprintf(".vc/keys/%s/.commits/%s", key, commitId)
@@ -233,7 +233,7 @@ func SimpleCommit(key string, oldContent string, newContent string) (string, err
 
 	hash := sha256.Sum256([]byte(newContent))
 	hashString := fmt.Sprintf("%x", hash)
-	timestamp := time.Now().Unix()
+	timestamp := timeNow.Unix()
 	timestampString := fmt.Sprintf("%d", timestamp)
 	commitId := "d" + timestampString + "+" + hashString 
 
@@ -243,4 +243,10 @@ func SimpleCommit(key string, oldContent string, newContent string) (string, err
 		return "", fmt.Errorf("failed to write commit file: %w", err)
 	}
 	return commitId, nil
+}
+
+var timeNow time.Time
+
+func init() {
+	timeNow = time.Now() 
 }
