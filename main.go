@@ -44,6 +44,38 @@ func main() {
 			return
 		}
 		PrintDiffs(diffs)
+	} else if os.Args[1] == "cat" {
+		if len(os.Args) < 3 {
+			fmt.Println("Usage : vc cat <key> -c <commitId>")
+			return
+		}
+		key := os.Args[2]
+		// make the commitId optional
+		var commitId string
+		flagSet := flag.NewFlagSet("cat", flag.ExitOnError)
+		flagSet.StringVar(&commitId, "c", "", "commit ID to read")
+		flagSet.StringVar(&commitId, "commit", "", "commit ID to read")
+		if err := flagSet.Parse(os.Args[3:]); err != nil {
+			fmt.Println("Error parsing flags:", err)
+			return
+		}
+		if commitId == "" {
+			content, err := LastCat(key)
+			if err != nil {
+				fmt.Println("Error reading last commit:", err)
+				return
+			}
+			fmt.Println(content)
+		} else {
+			fmt.Println("Reading commit:", commitId)
+			content, err := Cat(key, commitId)
+			if err != nil {
+				fmt.Println("Error reading commit:", err)
+				return
+			}
+			fmt.Println(content)
+		}
+
 	}
 }
 
