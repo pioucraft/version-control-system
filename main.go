@@ -82,6 +82,13 @@ func main() {
 			fmt.Printf("%s", content)
 		}
 
-	}
+	 } else if os.Args[1] == "rebuild" {
+		 err := Rebuild()
+		 if err != nil {
+			 fmt.Println("Error rebuilding:", err)
+			 return
+		 }
+		 fmt.Println("Rebuild successful")
+	 }
 }
 
