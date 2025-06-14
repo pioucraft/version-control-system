@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"flag"
+	"time"
 )
 
 func main() {
@@ -32,6 +33,17 @@ func main() {
 		}
 		fmt.Println("Commit successful")
 		return
+	} else if os.Args[1] == "diff" {
+		diffs, err := DiffForCommit(time.Now())	
+		if err != nil {
+			fmt.Println("Error getting diffs:", err)
+			return
+		}
+		if len(diffs) == 0 {
+			fmt.Println("No changes to commit")
+			return
+		}
+		PrintDiffs(diffs)
 	}
 }
 

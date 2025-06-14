@@ -95,6 +95,10 @@ func DiffForCommit(timeNow time.Time) ([]SimpleCommitStruct, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to read file %s: %w", key, err)
 			}
+			if fmt.Sprintf("%x", content) == "" {
+				fmt.Printf("Skipping empty file %s\n", key)
+				continue // skip empty files
+			}
 			// generate the hash of the content
 			contentHash := sha256.Sum256(content)
 			
@@ -177,3 +181,19 @@ func DiffForCommit(timeNow time.Time) ([]SimpleCommitStruct, error) {
 	return commits, nil
 }
 
+func PrintDiffs(diffs []SimpleCommitStruct) {
+	for _, diff := range diffs {
+		if diff.BinaryContent != nil {
+			fmt.Printf("Binary file %s has changed.\n", diff.Key)
+			continue
+		} else if diff.OldContent == "" && diff.NewContent != "" {
+			fmt.Printf("New file %s added.\n", diff.Key)
+			continue
+		} else if diff.NewContent == "" {
+			fmt.Printf("File %s deleted.\n", diff.Key)
+			continue
+		} else {
+			fmt.Printf("Changes in file %s.\n", diff.Key)
+		}
+	}
+}
