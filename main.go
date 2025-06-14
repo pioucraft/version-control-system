@@ -15,6 +15,7 @@ func main() {
 		fmt.Println("  commit -m <message>        Commit changes with a message")
 		fmt.Println("  diff                       Show differences for the current commit")
 		fmt.Println("  cat <key> [-c <commitId>]  Read content for a key at a specific commit")
+		fmt.Println("  rebuild                    Rebuild the workspace from keys and commits")
 		fmt.Println("  help                       Show this help message")
 
 		return
