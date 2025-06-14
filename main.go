@@ -65,7 +65,7 @@ func main() {
 				fmt.Println("Error reading last commit:", err)
 				return
 			}
-			fmt.Println(content)
+			fmt.Printf("%s", content)
 		} else {
 			fmt.Println("Reading commit:", commitId)
 			content, err := Cat(key, commitId)
@@ -73,7 +73,7 @@ func main() {
 				fmt.Println("Error reading commit:", err)
 				return
 			}
-			fmt.Println(content)
+			fmt.Printf("%s", content)
 		}
 
 	}
